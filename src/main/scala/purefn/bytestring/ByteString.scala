@@ -23,12 +23,12 @@ sealed abstract class ByteString(private[bytestring] val buf: ByteBuffer) {
   /**
    * Append a byte to the end of a `ByteString`.
    */
-  final def :+(b: Byte): ByteString = withBuf(src ⇒ create(length + 1)(_.put(src).put(b)))
+  final def :+(b: Byte): ByteString = withBuf(src ⇒ create(length + 1) { dst ⇒ dst.put(src).put(b); () })
 
   /**
    * Prepend a byte to the beginning of a `ByteString`.
    */
-  final def +:(b: Byte): ByteString = withBuf(src ⇒ create(length + 1)(_.put(b).put(src)))
+  final def +:(b: Byte): ByteString = withBuf(src ⇒ create(length + 1) { dst ⇒ dst.put(b).put(src); () })
 
   /**
    * Get the byte at position `index`.
@@ -71,7 +71,7 @@ sealed abstract class ByteString(private[bytestring] val buf: ByteBuffer) {
    */
   final def copy: ByteString = 
     if (length == buf.capacity) this
-    else withBuf(src ⇒ create(length)(_.put(src)))
+    else withBuf(src ⇒ create(length) { dst ⇒ dst.put(src); () })
 
   /**
    * Extract the suffix after the first `n` elements, or `empty` if `n > length`.
@@ -234,7 +234,7 @@ sealed abstract class ByteString(private[bytestring] val buf: ByteBuffer) {
    */
   final def intersperse(b: Byte): ByteString = {
     @tailrec def loop(dst: ByteBuffer, i: Int) {
-      if (i == length - 1) dst.put(unsafeApply(i))
+      if (i == length - 1) { dst.put(unsafeApply(i)); () }
       else loop(dst.put(unsafeApply(i)).put(b), i + 1)
     }
     if (length < 2) this
@@ -576,6 +576,7 @@ trait ByteStringFunctions {
     else create(l) { buf1 ⇒ 
       buf0.limit(l)
       buf1.put(buf0)
+      ()
     }
   }
 
@@ -588,6 +589,7 @@ trait ByteStringFunctions {
       val bs = create(l) { buf1 ⇒ 
         buf0.position(off).limit(off + l)
         buf1.put(buf0)
+        ()
       }
       (bs, a)
     }

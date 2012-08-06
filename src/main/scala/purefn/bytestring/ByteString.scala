@@ -3,6 +3,7 @@ package purefn.bytestring
 import scalaz._
 import std.anyVal._
 import std.stream._
+import std.tuple._
 
 import scala.annotation._
 
@@ -525,7 +526,8 @@ trait ByteStringFunctions {
     @tailrec def loop(buf: ByteBuffer, i: Int): ByteString = 
       if (n > i) loop(buf.put(i, b), i + 1)
       else ByteString({ buf.flip; buf })
-    loop(ByteBuffer.allocate(n), 0)
+    if (n < 0) empty
+    else loop(ByteBuffer.allocate(n), 0)
   }
  
   def unfoldr[A](a: A)(f: A ⇒ Option[(Byte, A)]): ByteString = {
@@ -549,8 +551,8 @@ trait ByteStringFunctions {
   /**
    * Transforms a list of pairs of bytes into a pair of `ByteString`s. Note that this performs two 'pack' operations.
    */
-  def unzip(bs: Stream[(Byte, Byte)]): (ByteString, ByteString) =
-    (pack(bs.map(_._1).toArray), pack(bs.map(_._2).toArray))
+  def unzip[F[_] : Unzip : Foldable](bs: F[(Byte, Byte)]): (ByteString, ByteString) =
+    Bifunctor[Tuple2].umap(Unzip[F]unzip(bs))(packF[F])
 
   /**
    * Create ByteString of size `n` and use `f` to fill it's contents.

@@ -487,7 +487,7 @@ sealed abstract class ByteString(private[bytestring] val buf: ByteBuffer) {
 object ByteString extends ByteStringFunctions with ByteStringInstances
 
 trait ByteStringFunctions {
-  private[bytestring] def apply(b: ByteBuffer): ByteString = new ByteString(b.asReadOnlyBuffer) {}
+  private[bytestring] def apply(b: ByteBuffer): ByteString = new ByteString(b) {}
 
   def concat[F[_]: Foldable](bs: F[ByteString]): ByteString = {
     def len = Foldable[F].foldMap(bs)(_.length)
@@ -513,7 +513,7 @@ trait ByteStringFunctions {
     ByteString(buf)
   }
 
-  @inline def packS(s: String): ByteString = pack(s.getBytes)
+  @inline def packs(s: String): ByteString = pack(s.getBytes)
 
   def packF[F[_]: Foldable](bs: F[Byte]): ByteString =
     unfoldr(Foldable[F].toStream(bs)) {

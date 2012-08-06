@@ -30,7 +30,7 @@ trait InputStreamFunctions {
       }
     }
     IO(chunks(1024, DList(), 0) match {
-      case (bufs, l) ⇒ create(l)(dst ⇒ bufs.map(dst.put))
+      case (bufs, l) ⇒ create(l) { dst ⇒ bufs.map(dst.put); () }
     })
   }
 
@@ -95,7 +95,7 @@ trait InputStreamFunctions {
       else chunks(n1, n0+n1, bufs :+ buf, len + l)
     }
     IO(chunks(32, 64, DList(), 0) match {
-      case (bufs, l) ⇒ create(l)(dst ⇒ bufs.map(dst.put))
+      case (bufs, l) ⇒ create(l) { dst ⇒ bufs.map(dst.put); () }
     })
   }
 }

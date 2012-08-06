@@ -389,10 +389,16 @@ sealed abstract class ByteString(private[bytestring] val buf: ByteBuffer) {
    */
   final def takeWhile(p: Byte ⇒ Boolean): ByteString = unsafeTake(findIndexOrEndWhere(!p(_)))
 
-  /**
-   * Converts the `ByteString` to a `String` using UTF-8.
-   */
-  final override lazy val toString = withBuf(b ⇒ Charset.forName("UTF-8").decode(b).toString)
+  /** Converts the `ByteString` to a `Stream[Byte]` */
+  final def toStream: Stream[Byte] = {
+    def loop(b: ByteBuffer, i: Int): Stream[Byte] =
+      if (i >= length) Stream.empty
+      else unsafeApply(i) #:: loop(b, i + 1)
+    loop(buf, 0)
+  }
+
+  /** Converts the `ByteString` to a `String` using UTF-8 encoding. */
+  final override def toString = withBuf(b ⇒ Charset.forName("UTF-8").decode(b).toString)
 
   /**
    * Extract the head and tail of a `ByteString`, returning `None` if it is empty.
@@ -525,7 +531,7 @@ trait ByteStringFunctions {
   def replicate(n: Int, b: Byte): ByteString = {
     @tailrec def loop(buf: ByteBuffer, i: Int): ByteString = 
       if (n > i) loop(buf.put(i, b), i + 1)
-      else ByteString({ buf.flip; buf })
+      else ByteString(buf)
     if (n < 0) empty
     else loop(ByteBuffer.allocate(n), 0)
   }

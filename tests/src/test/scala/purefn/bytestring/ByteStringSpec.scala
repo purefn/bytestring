@@ -18,24 +18,24 @@ class ByteStringSpec extends Spec {
   checkAll("ByteString", monoid.laws[ByteString])
 
   "singleton" ! check { (x: Byte) ⇒
-    singleton(x).buf.array must be_=== (Array(x))
+    singleton(x).toStream must be_=== (Stream(x))
   }
 
-  "pack" ! check { (xs: ByteArray) ⇒ 
-    pack(xs.array).buf.array must be_=== (xs.array)
+  "pack" ! check { (xs: Stream[Byte]) ⇒ 
+    pack(xs.toArray).toStream must be_=== (xs)
   }
 
   "packs" ! check { (x: String) ⇒
-    packs(x).buf.array must be_=== (x.getBytes)
+    packs(x).toStream must be_=== (x.getBytes.toStream)
   }
 
   "packF" ! check { (xs: Stream[Byte]) ⇒
-    packF(xs).buf.array must be_=== (xs.toArray)
+    packF(xs).toStream must be_=== (xs)
   }
 
   // use Short so the sizes don't get too huge
   "replicate" ! check { (n: Short, x: Byte) ⇒
-    replicate(n, x).buf.array must be_=== (Array.fill(n)(x))
+    replicate(n, x).toStream must be_=== (Stream.fill(n)(x))
   }
 
   implicit def unfoldrFunctionArb: Arbitrary[Int ⇒ Option[(Byte, Int)]] = Arbitrary {
@@ -45,12 +45,19 @@ class ByteStringSpec extends Spec {
     } yield map.get(_: Int)
   }
  
+  // TODO remove when next scalaz version is released
+  def unfoldStream[A, B](seed: A)(f: A => Option[(B, A)]): Stream[B] =
+    f(seed) match {
+      case None         => Stream.empty
+      case Some((b, a)) => Stream.cons(b, unfoldStream(a)(f))
+    }
+
   "unfoldr" ! check { (f: Int ⇒ Option[(Byte, Int)]) ⇒
-    unfoldr(0)(f).buf.array must be_=== (DList.unfoldr(0, f).toList.toArray)
+    unfoldr(0)(f).toStream must be_=== (unfoldStream(0)(f))
   }
 
   "unfoldrN" ! check { (n: Short, f: Int ⇒ Option[(Byte, Int)]) ⇒
-    unfoldrN(n, 0)(f)._1.buf.array must be_=== (DList.unfoldr(0, f).toList.take(n).toArray)
+    unfoldrN(n, 0)(f)._1.toStream must be_=== (unfoldStream(0)(f).take(n))
   }
 
   // TODO remove when next version of scalaz is released
@@ -59,43 +66,10 @@ class ByteStringSpec extends Spec {
   }
 
   "unzip" ! check { (xs: Stream[(Byte, Byte)]) ⇒
-    Bifunctor[Tuple2].umap(unzip(xs))(_.buf.array) must be_=== (Bifunctor[Tuple2].umap(xs.unzip)(packF[Stream](_).buf.array))
+    Bifunctor[Tuple2].umap(unzip(xs))(_.toStream) must be_=== (Bifunctor[Tuple2].umap(xs.unzip)(packF[Stream](_).toStream))
   }
 
-  "++" ! check { (x: ByteArray, y: ByteArray) ⇒ 
-    (pack(x.array) ++ pack(y.array)) must be_=== (pack(x.array ++ y.array))
-  }
-
-  // Used as ScalaCheck in place of Array[Byte] so we have meaningful toString to recreate test cases from
-  sealed case class ByteArray(array: Array[Byte]) {
-    override def toString = Show[Array[Byte]].shows(array)
-  }
-
-  implicit def ByteArrayInstance: Arbitrary[ByteArray] = Arbitrary(arbitrary[Array[Byte]] map (ByteArray(_)))
-
-  implicit def ArrayInstance[A : Equal : Show]: Equal[Array[A]] with Show[Array[A]] = new Equal[Array[A]] with Show[Array[A]] {
-    @annotation.tailrec def eq(a: Array[A], b: Array[A], i: Int): Boolean =
-      if (i >= a.length) true
-      else if (!Equal[A].equal(a(i), b(i))) false
-      else eq(a, b, i + 1)
-
-    def equal(a: Array[A], b: Array[A]) =
-      if (a.length != b.length) false
-      else eq(a, b, 0)
-
-    def show(a: Array[A]) = shows(a).toList
-
-    override def shows(a: Array[A]) = {
-      import scala.collection.mutable._
-      val buf = new StringBuilder()
-      buf ++= "Array("
-      var i = 0
-      while (i < a.length) {
-        buf ++= Show[A].shows(a(i))
-        i += 1
-      }
-      buf += ')'
-      buf.toString
-    }
+  "++" ! check { (xs: Stream[Byte], ys: Stream[Byte]) ⇒ 
+    (packF(xs) ++ packF(ys)) must be_=== (packF(xs ++ ys))
   }
 }

@@ -70,7 +70,7 @@ sealed abstract class ByteString(private[bytestring] val buf: ByteBuffer) {
    * If there is no data to be garbage collected, this `ByteString` is
    * returned as-is.
    */
-  final def copy: ByteString = 
+  final def copy: ByteString =
     if (length == buf.capacity) this
     else withBuf(src ⇒ create(length) { dst ⇒ dst.put(src); () })
 
@@ -94,10 +94,11 @@ sealed abstract class ByteString(private[bytestring] val buf: ByteBuffer) {
     if (b.length == 0) true
     else if (length < b.length) false
     else withBuf(buf ⇒ buf.position(buf.limit - b.length) == b.buf)
+
   /**
    *  Determines if any element of the `ByteString` satisfies the predicate.
    */
-  final def exists(f: Byte ⇒ Boolean): Boolean = findIndexOfWhere(f, 0) >= 0
+  final def exists(f: Byte ⇒ Boolean): Boolean = findIndexWhere(f, 0) >= 0
 
   /**
    * Returns a ByteString containing those bytes that satisfy the predicate.
@@ -136,17 +137,17 @@ sealed abstract class ByteString(private[bytestring] val buf: ByteBuffer) {
    */
   final def foldRight[A](a: A)(f: (Byte, A) ⇒ A): A = {
     @tailrec def loop(z: A, i: Int): A =
-      if (i >= 0) loop(f(apply(i), z), i - 1)
+      if (i >= 0) loop(f(unsafeApply(i), z), i - 1)
       else z
     loop(a, length - 1)
   }
 
   final def forall(f: Byte ⇒ Boolean): Boolean = {
-    @tailrec def loop(src: ByteBuffer, n: Int): Boolean =
-      if (n <= 0) true
-      else if (f(src.get)) loop(src, n - 1)
+    @tailrec def loop(i: Int): Boolean =
+      if (i >= length) true
+      else if (f(unsafeApply(i))) loop(i + 1)
       else false
-    withBuf(loop(_, length))
+    loop(0)
   }
 
   /**
@@ -171,6 +172,14 @@ sealed abstract class ByteString(private[bytestring] val buf: ByteBuffer) {
     if (isEmpty) errorEmpty("head")
     else unsafeHead
 
+  /**
+   * Extract the first element of a `ByteString`.
+   * `None` is returned in the case of an empty `ByteString`.
+   */
+  final def headOption: Option[Byte] =
+    if (isEmpty) None
+    else Some(unsafeHead)
+
   /** 
    * Gives the index of the first element in this `ByteString` which is equal to `b`,
    * or `None` if there is no such element. 
@@ -194,7 +203,7 @@ sealed abstract class ByteString(private[bytestring] val buf: ByteBuffer) {
    * Finds the index of the first element in the ByteString satisfying the predicate.
    */
   final def indexWhere(p: Byte ⇒ Boolean): Option[Int] = {
-    val i = findIndexOfWhere(p, 0)
+    val i = findIndexWhere(p, 0)
     if (i < 0) None
     else Some(i)
   }
@@ -215,19 +224,7 @@ sealed abstract class ByteString(private[bytestring] val buf: ByteBuffer) {
    * list.
    */
   /* TODO Specialize with a macro for when `bs.length == 2` and this is a singleton. */
-  final def intercalate(bs: Stream[ByteString]): ByteString = concat(streamIntersperse(bs, this))
-
-  /** TODO remove when next version of scalaz is released */
-  private[this] def streamIntersperse[A](as: Stream[A], a: A): Stream[A] = {
-    def loop(rest: Stream[A]): Stream[A] = rest match {
-      case Stream.Empty => Stream.empty
-      case h #:: t      => a #:: h #:: loop(t)
-    }
-    as match {
-      case Stream.Empty => Stream.empty
-      case h #:: t      => h #:: loop(t)
-    }
-  }
+  final def intercalate(bs: Stream[ByteString]): ByteString = concat(std.stream.intersperse(bs, this))
 
   /**
    * `intersperse`s a `Byte` between the elements of this `ByteString`.  It is analogous to the intersperse function 
@@ -253,8 +250,16 @@ sealed abstract class ByteString(private[bytestring] val buf: ByteBuffer) {
    */
   final def last: Byte =
     if (isEmpty) errorEmpty("last")
-    else apply(length - 1)
+    else unsafeApply(length - 1)
 
+  /**
+   * Extract the last element of a `ByteString`.
+   * `None` is returned in the case of an empty `ByteString`.
+   */
+  final def lastOption: Option[Byte] =
+    if (isEmpty) None
+    else Some(unsafeApply(length - 1))
+  
   /**
    * `lastBreak` behaves like `break` but from the end of the `ByteString`.
    */
@@ -302,7 +307,7 @@ sealed abstract class ByteString(private[bytestring] val buf: ByteBuffer) {
    */
   final def reverse: ByteString = {
     @tailrec def loop(dst: ByteBuffer, i: Int) {
-      if (i >= 0) loop(dst.put(apply(i)), i - 1)
+      if (i >= 0) loop(dst.put(unsafeApply(i)), i - 1)
     }
     create(length)(loop(_, length - 1))
   }
@@ -407,7 +412,7 @@ sealed abstract class ByteString(private[bytestring] val buf: ByteBuffer) {
     if (isEmpty) None
     else withBuf { buf ⇒
       buf.position(buf.position + 1)
-      Some((apply(0), ByteString(buf)))
+      Some((unsafeApply(0), ByteString(buf)))
     }
 
   /**
@@ -445,7 +450,7 @@ sealed abstract class ByteString(private[bytestring] val buf: ByteBuffer) {
   @inline final def unsafeTake(n: Int): ByteString = ByteString(withBuf { buf ⇒ buf.limit(buf.position + n); buf })
 
   /* TODO Would be nice to replace this with something more like memchr if we're using a direct buffer */
-  @inline private[bytestring] def findIndexOf(b: Byte, i: Int): Int = findIndexOfWhere(_ == b, i)
+  @inline private[bytestring] def findIndexOf(b: Byte, i: Int): Int = findIndexWhere(_ == b, i)
 
   /* TODO Replace with KMP implementation */
   @inline private[bytestring] def findIndexOfSlice(b: ByteString): Int = {
@@ -453,10 +458,11 @@ sealed abstract class ByteString(private[bytestring] val buf: ByteBuffer) {
       if (src.isEmpty) -1
       else if (src startsWith b) i
       else find(i + 1, src.unsafeTail)
-    find(0, this)
+    if (b.isEmpty) 0
+    else find(0, this)
   }
 
-  @inline private[bytestring] def findIndexOfWhere(p: Byte ⇒ Boolean, i: Int): Int = {
+  @inline private[bytestring] def findIndexWhere(p: Byte ⇒ Boolean, i: Int): Int = {
     @tailrec def loop(ii: Int): Int = 
       if (ii >= length) -1
       else if (p(unsafeApply(ii))) ii
@@ -510,7 +516,7 @@ trait ByteStringFunctions {
     }
   }
 
-  def empty: ByteString = ByteString(ByteBuffer.allocate(0))
+  def empty: ByteString = ByteString(ByteBuffer.wrap(Array.empty))
 
   def singleton(b: Byte): ByteString = ByteString(ByteBuffer.wrap(Array(b)))
 
@@ -537,11 +543,11 @@ trait ByteStringFunctions {
   }
  
   def unfoldr[A](a: A)(f: A ⇒ Option[(Byte, A)]): ByteString = {
-    @tailrec def chunk(n0: Int, n1: Int, x: A, cs: Stream[ByteString]): Stream[ByteString] = unfoldrN(n0, x)(f) match {
-      case (s, None)    ⇒ s #:: cs
-      case (s, Some(y)) ⇒ chunk(n1, n0+n1, y, s #:: cs)
+    def chunk(n0: Int, n1: Int, x: A): Stream[ByteString] = unfoldrN(n0, x)(f) match {
+      case (s, None)    ⇒ s #:: Stream.empty
+      case (s, Some(y)) ⇒ s #:: chunk(n1, n0+n1, y)
     }
-    concat(chunk(32, 64, a, Stream.empty))
+    concat(chunk(32, 64, a))
   }
 
   def unfoldrN[A](max: Int, seed: A)(f: A ⇒ Option[(Byte, A)]): (ByteString, Option[A]) = {
@@ -550,7 +556,7 @@ trait ByteStringFunctions {
       case Some((b, y)) if n == max ⇒ (0, n, Some(x))
       case Some((b, y))             ⇒ loop(buf.put(b), y, n + 1)
     }
-    if (max < 0) (empty, Some(seed))
+    if (max <= 0) (empty, Some(seed))
     else createAndTrim1(max)(loop(_, seed, 0))
   }
 
@@ -614,7 +620,6 @@ trait ByteStringInstances {
   }
 
   implicit lazy val ByteStringShow: Show[ByteString] = new Show[ByteString] {
-    def show(b: ByteString) = shows(b).toList
     override def shows(b: ByteString) = b.toString
   }
 

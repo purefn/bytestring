@@ -4,7 +4,7 @@ import Keys._
 object build extends Build {
   type Sett = Project.Setting[_]
 
-  val scalazVersion = "7.0.0-M1"
+  val scalazVersion = "7.0.0-M2"
 
   lazy val standardSettings = Defaults.defaultSettings ++ List[Sett](
     organization := "org.purefn"
@@ -12,9 +12,9 @@ object build extends Build {
   , crossScalaVersions := List("2.9.2", "2.10.0-M5")
   , crossVersion := CrossVersion.full
   , resolvers += "Sonatype Releases" at "https://oss.sonatype.org/content/repositories/releases"
-  , scalacOptions <++= (scalaVersion).map((sv: String) => List("-deprecation", "-unchecked", "-Ywarn-value-discard") ++ (if(sv.contains("2.10")) None else Some("-Ydependent-method-types")))
+  , scalacOptions <++= (scalaVersion).map((sv: String) ⇒ List("-deprecation", "-unchecked", "-Ywarn-value-discard") ++ (if(sv.contains("2.10")) None else Some("-Ydependent-method-types")))
   , scalacOptions in (Compile, doc) <++= (baseDirectory in LocalProject("bytestring")).map {
-      bd => List("-sourcepath", bd.getAbsolutePath, "-doc-source-url", "https://github.com/purefn/bytestring/€{FILE_PATH}.scala")
+      bd ⇒ List("-sourcepath", bd.getAbsolutePath, "-doc-source-url", "https://github.com/purefn/bytestring/€{FILE_PATH}.scala")
     }
   )
 
@@ -28,7 +28,7 @@ object build extends Build {
       , "org.scalaz" %% "scalaz-effect" % scalazVersion cross CrossVersion.full
       , "org.scalaz" %% "scalaz-iteratee" % scalazVersion cross CrossVersion.full
       )
-  )
+    )
   , aggregate = List(scalacheckBinding, tests)
   )
 

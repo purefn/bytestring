@@ -49,7 +49,7 @@ object build extends Build {
   , settings     = standardSettings ++ List[Sett](
       name := "bytestring-tests"
     , libraryDependencies ++= List(
-        "org.specs2" %% "specs2" % "1.11" % "test"
+        "org.specs2" %% "specs2" % "1.12" % "test"
       , "org.scalaz" %% "scalaz-scalacheck-binding" % scalazVersion % "test"
       )
     )

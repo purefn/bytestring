@@ -10,14 +10,21 @@ import org.scalacheck.{Gen, Arbitrary, Prop, Properties}
 
 /** A minimal version of the Specs2 mutable base class */
 trait Spec
-  extends BaseSpecification with FragmentsBuilder with MustExpectations
-  with MustThrownExpectations with ShouldThrownExpectations with ScalaCheckMatchers
-  with MatchersImplicits with StandardMatchResults
-  with ArgumentsShortcuts with ArgumentsArgs {
+  extends BaseSpecification 
+  with FragmentsBuilder
+  with MustExpectations
+  with MustThrownExpectations 
+  with ShouldThrownExpectations 
+  with ExceptionMatchers
+  with ScalaCheckMatchers
+  with MatchersImplicits 
+  with StandardMatchResults
+  with ArgumentsShortcuts 
+  with ArgumentsArgs {
 
   addArguments(fullStackTrace)
 
-  def is = specFragments
+  def is = fragments
 
   addArguments(fullStackTrace)
 

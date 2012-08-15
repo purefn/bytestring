@@ -266,7 +266,7 @@ sealed abstract class ByteString(private[bytestring] val buf: ByteBuffer) {
   final def lastBreak(p: Byte ⇒ Boolean): (ByteString, ByteString) = splitAt(findFromEndUntil(p))
 
   /**
-   * 
+   * Finds index of last occurrence of a `Byte` in this `ByteString`.
    */
   final def lastIndexOf(b: Byte): Option[Int] = {
     val i = findLastIndexOf(b, length - 1)
@@ -331,11 +331,12 @@ sealed abstract class ByteString(private[bytestring] val buf: ByteBuffer) {
    */
   final def split(b: Byte): Stream[ByteString] = {
     def loop(i: Int): Stream[ByteString] = {
-      val ii = findIndexOf(b, i)
-      if (ii < 0) Stream(slice(i, length))
-      else slice(i, ii) #:: loop(ii + 1)
+      val j = findIndexOf(b, i)
+      if (j < 0) Stream(slice(i, length - i))
+      else slice(i, j - i) #:: loop(j + 1)
     }
-    loop(0)
+    if (isEmpty) Stream()
+    else loop(0)
   }
 
   /**
@@ -362,7 +363,8 @@ sealed abstract class ByteString(private[bytestring] val buf: ByteBuffer) {
         if (p(b)) slice(i, j) #:: loop(i + j + 1, 0)
         else loop(i, j + 1)
       }
-    loop(0, 0)
+    if (isEmpty) Stream.empty
+    else loop(0, 0)
   }
 
   /**
@@ -394,6 +396,10 @@ sealed abstract class ByteString(private[bytestring] val buf: ByteBuffer) {
    */
   final def takeWhile(p: Byte ⇒ Boolean): ByteString = unsafeTake(findIndexOrEndWhere(!p(_)))
 
+  /** Converts this `ByteString` to a `Cord` using the given charset */
+  final def toCord(charset: CharSet): Cord = 
+    Cord.stringToCord(withBuf(Charset.forName(charset.value).decode).toString)
+
   /** Converts the `ByteString` to a `Stream[Byte]` */
   final def toStream: Stream[Byte] = {
     def loop(b: ByteBuffer, i: Int): Stream[Byte] =
@@ -402,8 +408,11 @@ sealed abstract class ByteString(private[bytestring] val buf: ByteBuffer) {
     loop(buf, 0)
   }
 
+  /** Converts the `ByteString` to a `List[Byte]` */
+  final def toList: List[Byte] = toStream.toList
+
   /** Converts the `ByteString` to a `String` using UTF-8 encoding. */
-  final override def toString = withBuf(b ⇒ Charset.forName("UTF-8").decode(b).toString)
+  final override def toString = withBuf(Charset.forName("UTF-8").decode).toString
 
   /**
    * Extract the head and tail of a `ByteString`, returning `None` if it is empty.
@@ -492,7 +501,9 @@ sealed abstract class ByteString(private[bytestring] val buf: ByteBuffer) {
     else if (unsafeApply(i) == b) i
     else findLastIndexOf(b, i - 1)
 
-  @inline private[bytestring] def slice(i:Int, l: Int) = ByteString(withBuf { buf ⇒ buf.position(buf.position + i).limit(buf.position + l); buf })
+  @inline private[bytestring] def slice(i:Int, l: Int) = 
+    if (l == 0) ByteString.empty
+    else ByteString(withBuf { buf ⇒ buf.position(buf.position + i).limit(buf.position + l); buf })
 
   @inline private[bytestring] def withBuf[A](f: ByteBuffer ⇒ A): A = f(buf.duplicate)
 }
@@ -627,5 +638,8 @@ trait ByteStringInstances {
     def zero = ByteString.empty
     def append(a: ByteString, b: ⇒ ByteString) = a ++ b
   }
+
+  // TODO remove with next scalaz update
+  implicit lazy val CordShow: Show[Cord] = Show.showFromToString
 }
 

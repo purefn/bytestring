@@ -38,7 +38,7 @@ trait Spec
     }
   }
 
-  override implicit val defaultParameters = set((maxSize, 5), (minTestsOk, 33))
+  override implicit val defaultParameters = set((maxSize, 5), (minTestsOk, 100))
 //   override implicit val defaultParameters = display((maxSize, 5), (minTestsOk, 33))
 
   def checkAll(name: String, props: Properties)(implicit p: Parameters) {

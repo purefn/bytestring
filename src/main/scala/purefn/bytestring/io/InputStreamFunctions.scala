@@ -35,13 +35,16 @@ trait InputStreamFunctions {
   }
 
   /** Read up to `max` bytes into a `ByteString` directly from the specified `InputStream`. */
+  // TODO Should this return `IO[Option[ByteString]]` or `OptionT[IO, ByteString]` with
+  //      `None` indicating EOF has been reached? There isn't any other way to check
+  //      that with `InputStream`s.
   def sGetStr(is: InputStream, max: Int): IO[ByteString] = {
-    if (max == 0) IO(empty)
-    else if (max < 0) illegalBufferSize("sGetStr", max)
+    if (max <= 0) IO(empty)
     else IO {
       val buf = Array.ofDim[Byte](max)
       val len = is.read(buf, 0, max)
-      ByteString(ByteBuffer.wrap(buf, 0, len)).copy
+      if (len == -1) empty
+      else ByteString(ByteBuffer.wrap(buf, 0, len)).copy
     }
   }
 
@@ -52,6 +55,9 @@ trait InputStreamFunctions {
    * If the `InputStream` supports `mark` and `reset`, bytes can be read in bulk.
    * Otherwise bytes must be read one at a time, which is much less efficient.
    */
+  // TODO Should this return `IO[Option[ByteString]]` or `OptionT[IO, ByteString]` with
+  //      `None` indicating EOF has been reached? There isn't any other way to check
+  //      that with `InputStream`s.
   def sGetLine(is: InputStream): IO[ByteString] = {
     @tailrec def findEol(buf: ByteBuffer, i: Int): Int =
       if (i >= buf.remaining) -1

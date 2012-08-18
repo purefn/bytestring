@@ -3,12 +3,14 @@ package io
 
 import ByteString._
 import syntax._
+import scalacheck._
 
 import scalaz._
 import std.option._
 import std.stream._
 import syntax.std.stream._
 
+import org.specs2.matcher._
 import org.scalacheck._
 import Gen.{choose, listOf, oneOf}
 import Arbitrary.arbitrary
@@ -20,14 +22,12 @@ class InputStreamFunctionsSpec extends Spec {
   import ByteStringSpecFunctions._
   import InputStreamFunctionsSpecData._
 
-  "sGetContents" ! check { (xs: Array[Byte]) ⇒
-    val bais = new ByteArrayInputStream(xs)
-    bais.getContents.map(_ must be_=== (pack(xs)))
+  "sGetContents" ! check { (x: ByteString) ⇒
+    ByteStringInputStream(x).getContents.map(_ must be_=== (x))
   }
 
-  "sGetStr" ! check { (xs: Array[Byte], y: Int) ⇒
-    val bais = new ByteArrayInputStream(xs)
-    bais.getStr(y).map(_ must be_=== (pack(xs.take(y))))
+  "sGetStr" ! check { (x: ByteString, y: Short) ⇒
+    ByteStringInputStream(x).getStr(y).map(_ must be_=== (x.take(y)))
   }
 
   "sGetLine" ! check { (x: Lines) ⇒

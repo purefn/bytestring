@@ -91,7 +91,7 @@ trait InputStreamFunctions {
     def read(buf: ByteBuffer, l: Int): Int =
       if (is.markSupported) readBulk(buf, l)
       else readOne(buf, l)
-    @tailrec def chunks(n0: Int, n1: Int,  bufs: DList[ByteBuffer], bufsLen: Int, len: Int): (DList[ByteBuffer], Int) = {
+    @tailrec def chunks(n0: Int, n1: Int,  bufs: Stream[ByteBuffer], bufsLen: Int, len: Int): (Stream[ByteBuffer], Int) = {
       val buf = ByteBuffer.allocate(n0)
       val l = read(buf, 0)
       buf.flip
@@ -99,10 +99,10 @@ trait InputStreamFunctions {
         if (bufsLen == 0) (bufs, -1)
         else (bufs, len)
       if (l == 0) (bufs, len)
-      else if (l < n0) (bufs :+ buf, len + l)
-      else chunks(n1, n0+n1, bufs :+ buf, bufsLen + 1, len + l)
+      else if (l < n0) (buf +: bufs, len + l)
+      else chunks(n1, n0+n1, buf +: bufs, bufsLen + 1, len + l)
     }
-    OptionT(IO(chunks(32, 64, DList(), 0, 0) match {
+    OptionT(IO(chunks(32, 64, Stream(), 0, 0) match {
       case (_, -1)   ⇒ None
       case (bufs, l) ⇒ Some(create(l) { dst ⇒ bufs.map(dst.put); () })
     }))

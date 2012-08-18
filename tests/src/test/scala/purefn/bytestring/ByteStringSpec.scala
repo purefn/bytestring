@@ -26,6 +26,11 @@ import scalaz.scalacheck.ScalazProperties._
 import scala.util.control.Exception._
 
 class ByteStringSpec extends Spec {
+  // force these case objects to be initialized now to avoid deadlock https://issues.scala-lang.org/browse/SI-6256
+  scalaz.Ordering.LT
+  scalaz.Ordering.EQ
+  scalaz.Ordering.GT
+
   checkAll("ByteString", order.laws[ByteString])
   checkAll("ByteString", monoid.laws[ByteString])
 
@@ -113,7 +118,7 @@ class ByteStringSpec extends Spec {
 
   "b === b.copy" ! check { (x: ByteString) ⇒ x must be_=== (x.copy) }
 
-  "drop" ! check { (xs: Stream[Byte], n: Int) ⇒
+  "drop" ! check { (xs: Stream[Byte], n: Short) ⇒
     packF(xs).drop(n).toStream must be_=== (xs.drop(n))
   }
 
@@ -280,7 +285,7 @@ class ByteStringSpec extends Spec {
     else packF(xs).tail must be_=== (packF(xs.tail))  
   }
 
-  "take" ! check { (xs: Stream[Byte], n: Int) ⇒
+  "take" ! check { (xs: Stream[Byte], n: Short) ⇒
     packF(xs).take(n) must be_=== (packF(xs.take(n)))
   }
 

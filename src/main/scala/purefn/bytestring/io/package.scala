@@ -25,6 +25,9 @@ package object io extends InputStreamFunctions with OutputStreamFunctions with F
   private[io] def i2b(i: Int): Byte = 
     (if (i > Byte.MaxValue) i - 256 else i).toByte
 
+  private[io] def b2i(b: Byte): Int =
+    (if (b < 0) b + 256 else b).toInt
+
   private[io] def illegalBufferSize[A](fn: String, n: Long): IO[A] =
     IO.throwIO(new IOException(fn + ": illegal ByteString size " + n))
 }

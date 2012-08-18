@@ -6,7 +6,7 @@ import effect.IO
 
 import scala.annotation._
 
-import java.io.InputStream
+import java.io.{BufferedInputStream, InputStream}
 import java.nio.ByteBuffer
 
 trait InputStreamFunctions {
@@ -55,10 +55,7 @@ trait InputStreamFunctions {
    * If the `InputStream` supports `mark` and `reset`, bytes can be read in bulk.
    * Otherwise bytes must be read one at a time, which is much less efficient.
    */
-  // TODO Should this return `IO[Option[ByteString]]` or `OptionT[IO, ByteString]` with
-  //      `None` indicating EOF has been reached? There isn't any other way to check
-  //      that with `InputStream`s.
-  def sGetLine(is: InputStream): IO[ByteString] = {
+  def sGetLine(is: InputStream): OptionT[IO, ByteString] = {
     @tailrec def findEol(buf: ByteBuffer, i: Int): Int =
       if (i >= buf.remaining) -1
       else if (buf.get(i) == '\n'.toByte) i
@@ -75,7 +72,9 @@ trait InputStreamFunctions {
       else {
         is.mark(buf.remaining)
         val r = is.read(buf.array, buf.position, buf.remaining)
-        if (r == -1) len
+        if (r == -1) 
+          if (len == 0) -1
+          else len
         else {
           val eol = findEol(buf, buf.position)
           if (eol == -1) {
@@ -92,16 +91,28 @@ trait InputStreamFunctions {
     def read(buf: ByteBuffer, l: Int): Int =
       if (is.markSupported) readBulk(buf, l)
       else readOne(buf, l)
-    @tailrec def chunks(n0: Int, n1: Int,  bufs: DList[ByteBuffer], len: Int): (DList[ByteBuffer], Int) = {
+    @tailrec def chunks(n0: Int, n1: Int,  bufs: DList[ByteBuffer], bufsLen: Int, len: Int): (DList[ByteBuffer], Int) = {
       val buf = ByteBuffer.allocate(n0)
       val l = read(buf, 0)
       buf.flip
+      if (l == -1)
+        if (bufsLen == 0) (bufs, -1)
+        else (bufs, len)
       if (l == 0) (bufs, len)
       else if (l < n0) (bufs :+ buf, len + l)
-      else chunks(n1, n0+n1, bufs :+ buf, len + l)
+      else chunks(n1, n0+n1, bufs :+ buf, bufsLen + 1, len + l)
     }
-    IO(chunks(32, 64, DList(), 0) match {
-      case (bufs, l) ⇒ create(l) { dst ⇒ bufs.map(dst.put); () }
-    })
+    OptionT(IO(chunks(32, 64, DList(), 0, 0) match {
+      case (_, -1)   ⇒ None
+      case (bufs, l) ⇒ Some(create(l) { dst ⇒ bufs.map(dst.put); () })
+    }))
+  }
+
+  /** Read all lines from an `InputStream`. */
+  def sGetLines(is: InputStream): StreamT[IO, ByteString] = {
+    def buffered =
+      if (is.markSupported) is
+      else new BufferedInputStream(is)
+    StreamT.unfoldM(buffered)(is0 ⇒ sGetLine(is0).map((_, is0)).run)
   }
 }

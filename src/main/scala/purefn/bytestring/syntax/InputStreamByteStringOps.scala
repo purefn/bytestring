@@ -12,7 +12,8 @@ import java.io.InputStream
 sealed abstract class InputStreamByteStringOps extends Ops[InputStream] {
   final def getContents: IO[ByteString] = sGetContents(self)
   final def getStr(max: Int): IO[ByteString] = sGetStr(self, max)
-  final def getLine: IO[ByteString] = sGetLine(self)
+  final def getLine: OptionT[IO, ByteString] = sGetLine(self)
+  final def getLines: StreamT[IO, ByteString] = sGetLines(self)
 }
 
 trait ToInputStreamByteStringOps {

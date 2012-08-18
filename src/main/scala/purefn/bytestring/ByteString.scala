@@ -631,15 +631,12 @@ trait ByteStringInstances {
   }
 
   implicit lazy val ByteStringShow: Show[ByteString] = new Show[ByteString] {
-    override def shows(b: ByteString) = b.toString
+    override def show(b: ByteString) = '"' -: b.toCord(CharSet.UTF8) :- '"'
   }
 
   implicit lazy val ByteStringMonoid: Monoid[ByteString] = new Monoid[ByteString] {
     def zero = ByteString.empty
     def append(a: ByteString, b: ⇒ ByteString) = a ++ b
   }
-
-  // TODO remove with next scalaz update
-  implicit lazy val CordShow: Show[Cord] = Show.showFromToString
 }
 

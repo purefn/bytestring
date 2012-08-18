@@ -14,7 +14,7 @@ package object io extends InputStreamFunctions with OutputStreamFunctions with F
   def getContents: IO[ByteString] = sGetContents(System.in)
 
   /** Read a line from stdin. */
-  def getLine: IO[ByteString] = sGetLine(System.in)
+  def getLine: OptionT[IO, ByteString] = sGetLine(System.in)
 
   /** Write a `ByteString` to stdout */
   def putStr(b: ByteString): IO[Unit] = sPutStr(b, System.out)

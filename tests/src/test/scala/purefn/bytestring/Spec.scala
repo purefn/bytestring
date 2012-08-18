@@ -1,12 +1,13 @@
 package purefn.bytestring
 
 import scalaz._
+import scalaz.effect.IO
 
 import org.specs2.matcher._
 import org.specs2.mutable.FragmentsBuilder
 import org.specs2.specification.{Example, Fragments, BaseSpecification, SpecificationStructure}
 import org.specs2.main.{ArgumentsShortcuts, ArgumentsArgs}
-import org.scalacheck.{Gen, Arbitrary, Prop, Properties}
+import org.scalacheck.{Gen, Arbitrary, Prop, Properties, Shrink}
 
 /** A minimal version of the Specs2 mutable base class */
 trait Spec
@@ -56,6 +57,8 @@ trait Spec
     )
     ()
   }
+
+  implicit def ioResultToProp[A](io: => IO[MatchResult[A]]): Prop = io.unsafePerformIO
 
   implicit def enrichProperties(props: Properties) = new {
     def withProp(propName: String, prop: Prop) = new Properties(props.name) {

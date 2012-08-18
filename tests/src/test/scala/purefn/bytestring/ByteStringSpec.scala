@@ -408,4 +408,9 @@ object ByteStringSpecData {
   implicit lazy val CordEqual: Equal[Cord] = new Equal[Cord] {
     def equal(x: Cord, y: Cord) = Equal[Stream[Char]].equal(x.toStream, y.toStream)
   }
+
+  // TODO remove with next scalaz update
+  implicit lazy val CordShow: Show[Cord] = new Show[Cord] {
+    override def show(x: Cord) = '"' -: x :- '"'
+  }
 }

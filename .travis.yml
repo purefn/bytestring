@@ -5,4 +5,4 @@ jdk:
   - oraclejdk7
 
 install: /bin/true
-script: ./sbt -J-Xss1M -mem 4096 -J-XX:MaxPermSize=128M ";clean;compile;test"
+script: ./sbt -J-Xss1M -mem 2048 -J-XX:MaxPermSize=128M ";clean;compile;test"

@@ -64,7 +64,10 @@ trait InputStreamFunctions {
       if (buf.remaining == 0) l
       else {
         val b = is.read
-        if (b == -1 || b == '\n'.toInt) l
+        if (b == -1)
+          if (l == 0) -1
+          else l
+        else if (b == '\n'.toInt) l
         else readOne(buf.put(i2b(b)), l+1)
       }
     @tailrec def readBulk(buf: ByteBuffer, len: Int): Int =

@@ -30,8 +30,16 @@ class InputStreamFunctionsSpec extends Spec {
     ByteStringInputStream(x).getStr(y).map(_ must be_=== (x.take(y)))
   }
 
-  "sGetLine" ! check { (x: Lines) ⇒
+  "sGetLine buffered" ! check { (x: Lines) ⇒
     sGetLine(x.is).run.map(_ must be_=== (x.head))
+  }
+
+  "sGetLine unbuffered" ! check { (x: Lines) ⇒
+    val is = new InputStream {
+      val is_ = x.is
+      override def read = is_.read
+    }
+    sGetLine(is).run.map(_ must be_=== (x.head))
   }
 
   "sGetLines" ! check { (x: Lines) ⇒
@@ -40,7 +48,7 @@ class InputStreamFunctionsSpec extends Spec {
 }
 
 object InputStreamFunctionsSpecData {
-  case class Lines(private[Lines] val xss: Stream[Stream[Byte]], nl: Boolean) {
+  case class Lines(val xss: Stream[Stream[Byte]], nl: Boolean) {
     def is = {
       def addNl(xs: Stream[Byte]) = (xs :+ '\n'.toByte).toStream
       def yss = 

@@ -4,7 +4,7 @@ import Keys._
 object build extends Build {
   type Sett = Project.Setting[_]
 
-  val scalazVersion = "7.0.0-M2"
+  val scalazVersion = "7.0.0-M3"
 
   lazy val standardSettings = Defaults.defaultSettings ++ List[Sett](
     organization := "org.purefn"

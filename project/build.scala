@@ -4,13 +4,15 @@ import Keys._
 object build extends Build {
   type Sett = Project.Setting[_]
 
-  val scalazVersion = "7.0.0-M3"
+  val scalazVersion = "7.0.0"
+
+  def specsVersion(scalaVersion: String) =
+    if (scalaVersion startsWith "2.9") "1.12.4.1" else "1.12.3"
 
   lazy val standardSettings = Defaults.defaultSettings ++ List[Sett](
     organization := "org.purefn"
-  , scalaVersion := "2.9.2"
-  , crossScalaVersions := List("2.9.2", "2.10.0-M5")
-  , crossVersion := CrossVersion.full
+  , scalaVersion := "2.10.1"
+  , crossScalaVersions := List("2.9.2", "2.9.3", "2.10.1")
   , resolvers += "Sonatype Releases" at "https://oss.sonatype.org/content/repositories/releases"
   , scalacOptions <++= (scalaVersion).map((sv: String) ⇒ List("-deprecation", "-unchecked", "-Ywarn-value-discard") ++ (if(sv.contains("2.10")) None else Some("-Ydependent-method-types")))
   , scalacOptions in (Compile, doc) <++= (baseDirectory in LocalProject("bytestring")).map {
@@ -24,9 +26,9 @@ object build extends Build {
   , settings = standardSettings ++ Unidoc.settings ++ List[Sett](
       name := "bytestring"
     , libraryDependencies ++= List(
-        "org.scalaz" %% "scalaz-core" % scalazVersion cross CrossVersion.full
-      , "org.scalaz" %% "scalaz-effect" % scalazVersion cross CrossVersion.full
-      , "org.scalaz" %% "scalaz-iteratee" % scalazVersion cross CrossVersion.full
+        "org.scalaz" %% "scalaz-core" % scalazVersion
+      , "org.scalaz" %% "scalaz-effect" % scalazVersion
+      , "org.scalaz" %% "scalaz-iteratee" % scalazVersion
       )
     )
   , aggregate = List(scalacheckBinding, tests)
@@ -38,7 +40,7 @@ object build extends Build {
   , dependencies = List(bytestring)
   , settings     = standardSettings ++ List[Sett](
       name := "bytestring-scalacheck-binding"
-    , libraryDependencies += "org.scalacheck" %% "scalacheck" % "1.10.0" cross CrossVersion.full
+    , libraryDependencies += "org.scalacheck" %% "scalacheck" % "1.10.0"
     )
   )
 
@@ -48,11 +50,10 @@ object build extends Build {
   , dependencies = List(bytestring, scalacheckBinding % "test")
   , settings     = standardSettings ++ List[Sett](
       name := "bytestring-tests"
-    , libraryDependencies ++= List(
-        "org.specs2" %% "specs2" % "1.12" % "test"
+    , libraryDependencies <++= scalaVersion(v => List(
+        "org.specs2" %% "specs2" % specsVersion(v) % "test"
       , "org.scalaz" %% "scalaz-scalacheck-binding" % scalazVersion % "test"
-      )
+      ))
     )
   )
 }
-

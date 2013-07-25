@@ -3,6 +3,7 @@ package purefn.bytestring
 import scalaz._
 import std.anyVal._
 import std.stream._
+import std.list._
 import std.tuple._
 
 import scala.annotation._
@@ -19,7 +20,7 @@ sealed abstract class ByteString(private[bytestring] val buf: ByteBuffer) {
   final def ++(b: ByteString): ByteString =
     if (isEmpty) b
     else if (b.isEmpty) this
-    else concat(Stream(this, b))
+    else concat(List(this, b))
 
   /**
    * Append a byte to the end of a `ByteString`.
@@ -282,7 +283,7 @@ sealed abstract class ByteString(private[bytestring] val buf: ByteBuffer) {
   /**
    * Length of the `ByteString`.
    */
-  final lazy val length: Int = buf.remaining
+  final val length: Int = buf.remaining
 
   /**
    *  The `ByteString` obtained by applying `f` to each element of this `ByteString`.
@@ -515,19 +516,19 @@ trait ByteStringFunctions {
 
   def concat[F[_]: Foldable](bs: F[ByteString]): ByteString = {
     def len = Foldable[F].foldMap(bs)(_.length)
-    @tailrec def loop(xs: Stream[ByteString], buf: ByteBuffer) {
+    @tailrec def loop(xs: List[ByteString], buf: ByteBuffer) {
       xs match {
-        case Stream.Empty ⇒ ()
-        case x #:: ys     ⇒ loop(ys, x.withBuf(buf.put))
+        case Nil     ⇒ ()
+        case x :: ys ⇒ loop(ys, x.withBuf(buf.put))
       }
     }
-    Foldable[F].toStream(bs) match {
-      case b #:: Stream.Empty ⇒ b
-      case bs                 ⇒ create(len)(loop(bs, _))
+    Foldable[F].toList(bs) match {
+      case b :: Nil ⇒ b
+      case bs       ⇒ create(len)(loop(bs, _))
     }
   }
 
-  def empty: ByteString = ByteString(ByteBuffer.wrap(Array.empty))
+  val empty: ByteString = ByteString(ByteBuffer.wrap(Array.empty))
 
   def singleton(b: Byte): ByteString = ByteString(ByteBuffer.wrap(Array(b)))
 
@@ -626,15 +627,15 @@ trait ByteStringFunctions {
 }
 
 trait ByteStringInstances {
-  implicit lazy val ByteStringOrder: Order[ByteString] = new Order[ByteString] {
+  implicit val ByteStringOrder: Order[ByteString] = new Order[ByteString] {
     def order(a: ByteString, b: ByteString) = Ordering.fromInt(a.withBuf(buf ⇒ b.withBuf(buf compareTo _)))
   }
 
-  implicit lazy val ByteStringShow: Show[ByteString] = new Show[ByteString] {
+  implicit val ByteStringShow: Show[ByteString] = new Show[ByteString] {
     override def show(b: ByteString) = '"' -: b.toCord(CharSet.UTF8) :- '"'
   }
 
-  implicit lazy val ByteStringMonoid: Monoid[ByteString] = new Monoid[ByteString] {
+  implicit val ByteStringMonoid: Monoid[ByteString] = new Monoid[ByteString] {
     def zero = ByteString.empty
     def append(a: ByteString, b: ⇒ ByteString) = a ++ b
   }

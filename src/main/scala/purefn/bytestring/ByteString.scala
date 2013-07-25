@@ -410,10 +410,16 @@ sealed abstract class ByteString(private[bytestring] val buf: ByteBuffer) {
   }
 
   /** Converts the `ByteString` to a `List[Byte]` */
-  final def toList: List[Byte] = toStream.toList
+  final def toList: List[Byte] = foldLeft[List[Byte]](Nil)((list, byte) => byte :: list).reverse
+
+  /** Copies the contents of the `ByteString` into a newly created array. */
+  final def toArray: Array[Byte] = Array.tabulate[Byte](length)(unsafeApply)
+
+  /** Converts the `ByteString` to a `String` with the given encoding. */
+  final def toString(charset: Charset) = withBuf(charset.decode).toString
 
   /** Converts the `ByteString` to a `String` using UTF-8 encoding. */
-  final override def toString = withBuf(Charset.forName("UTF-8").decode).toString
+  final override def toString = toString(utf8Charset)
 
   /**
    * Extract the head and tail of a `ByteString`, returning `None` if it is empty.
@@ -547,10 +553,11 @@ trait ByteStringFunctions {
     }
 
   def replicate(n: Int, b: Byte): ByteString = {
-    @tailrec def loop(buf: ByteBuffer, i: Int): ByteString = 
+    @tailrec def loop(buf: ByteBuffer, i: Int): ByteString = {
       if (n > i) loop(buf.put(i, b), i + 1)
       else ByteString(buf)
-    if (n < 0) empty
+    }
+    if (n <= 0) empty
     else loop(ByteBuffer.allocate(n), 0)
   }
  
@@ -627,6 +634,8 @@ trait ByteStringFunctions {
 }
 
 trait ByteStringInstances {
+  val utf8Charset = Charset.forName("UTF-8")
+
   implicit val ByteStringOrder: Order[ByteString] = new Order[ByteString] {
     def order(a: ByteString, b: ByteString) = Ordering.fromInt(a.withBuf(buf ⇒ b.withBuf(buf compareTo _)))
   }

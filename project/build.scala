@@ -18,6 +18,7 @@ object build extends Build {
   , scalacOptions in (Compile, doc) <++= (baseDirectory in LocalProject("bytestring")).map {
       bd ⇒ List("-sourcepath", bd.getAbsolutePath, "-doc-source-url", "https://github.com/purefn/bytestring/€{FILE_PATH}.scala")
     }
+  , testOptions in Test += Tests.Argument("showtimes")
   )
 
   lazy val bytestring = Project(

@@ -3,6 +3,7 @@ package purefn.bytestring
 import scalaz._
 import std.anyVal._
 import std.stream._
+import std.list._
 import std.tuple._
 
 import scala.annotation._
@@ -19,7 +20,7 @@ sealed abstract class ByteString(private[bytestring] val buf: ByteBuffer) {
   final def ++(b: ByteString): ByteString =
     if (isEmpty) b
     else if (b.isEmpty) this
-    else concat(Stream(this, b))
+    else concat(List(this, b))
 
   /**
    * Append a byte to the end of a `ByteString`.
@@ -282,7 +283,7 @@ sealed abstract class ByteString(private[bytestring] val buf: ByteBuffer) {
   /**
    * Length of the `ByteString`.
    */
-  final lazy val length: Int = buf.remaining
+  final val length: Int = buf.remaining
 
   /**
    *  The `ByteString` obtained by applying `f` to each element of this `ByteString`.
@@ -409,10 +410,16 @@ sealed abstract class ByteString(private[bytestring] val buf: ByteBuffer) {
   }
 
   /** Converts the `ByteString` to a `List[Byte]` */
-  final def toList: List[Byte] = toStream.toList
+  final def toList: List[Byte] = foldLeft[List[Byte]](Nil)((list, byte) => byte :: list).reverse
+
+  /** Copies the contents of the `ByteString` into a newly created array. */
+  final def toArray: Array[Byte] = Array.tabulate[Byte](length)(unsafeApply)
+
+  /** Converts the `ByteString` to a `String` with the given encoding. */
+  final def toString(charset: Charset) = withBuf(charset.decode).toString
 
   /** Converts the `ByteString` to a `String` using UTF-8 encoding. */
-  final override def toString = withBuf(Charset.forName("UTF-8").decode).toString
+  final override def toString = toString(utf8Charset)
 
   /**
    * Extract the head and tail of a `ByteString`, returning `None` if it is empty.
@@ -515,19 +522,19 @@ trait ByteStringFunctions {
 
   def concat[F[_]: Foldable](bs: F[ByteString]): ByteString = {
     def len = Foldable[F].foldMap(bs)(_.length)
-    @tailrec def loop(xs: Stream[ByteString], buf: ByteBuffer) {
+    @tailrec def loop(xs: List[ByteString], buf: ByteBuffer) {
       xs match {
-        case Stream.Empty ⇒ ()
-        case x #:: ys     ⇒ loop(ys, x.withBuf(buf.put))
+        case Nil     ⇒ ()
+        case x :: ys ⇒ loop(ys, x.withBuf(buf.put))
       }
     }
-    Foldable[F].toStream(bs) match {
-      case b #:: Stream.Empty ⇒ b
-      case bs                 ⇒ create(len)(loop(bs, _))
+    Foldable[F].toList(bs) match {
+      case b :: Nil ⇒ b
+      case bs       ⇒ create(len)(loop(bs, _))
     }
   }
 
-  def empty: ByteString = ByteString(ByteBuffer.wrap(Array.empty))
+  val empty: ByteString = ByteString(ByteBuffer.wrap(Array.empty))
 
   def singleton(b: Byte): ByteString = ByteString(ByteBuffer.wrap(Array(b)))
 
@@ -546,10 +553,11 @@ trait ByteStringFunctions {
     }
 
   def replicate(n: Int, b: Byte): ByteString = {
-    @tailrec def loop(buf: ByteBuffer, i: Int): ByteString = 
+    @tailrec def loop(buf: ByteBuffer, i: Int): ByteString = {
       if (n > i) loop(buf.put(i, b), i + 1)
       else ByteString(buf)
-    if (n < 0) empty
+    }
+    if (n <= 0) empty
     else loop(ByteBuffer.allocate(n), 0)
   }
  
@@ -626,15 +634,17 @@ trait ByteStringFunctions {
 }
 
 trait ByteStringInstances {
-  implicit lazy val ByteStringOrder: Order[ByteString] = new Order[ByteString] {
+  val utf8Charset = Charset.forName("UTF-8")
+
+  implicit val ByteStringOrder: Order[ByteString] = new Order[ByteString] {
     def order(a: ByteString, b: ByteString) = Ordering.fromInt(a.withBuf(buf ⇒ b.withBuf(buf compareTo _)))
   }
 
-  implicit lazy val ByteStringShow: Show[ByteString] = new Show[ByteString] {
+  implicit val ByteStringShow: Show[ByteString] = new Show[ByteString] {
     override def show(b: ByteString) = '"' -: b.toCord(CharSet.UTF8) :- '"'
   }
 
-  implicit lazy val ByteStringMonoid: Monoid[ByteString] = new Monoid[ByteString] {
+  implicit val ByteStringMonoid: Monoid[ByteString] = new Monoid[ByteString] {
     def zero = ByteString.empty
     def append(a: ByteString, b: ⇒ ByteString) = a ++ b
   }

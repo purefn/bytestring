@@ -31,6 +31,10 @@ class ByteStringSpec extends Spec {
   scalaz.Ordering.EQ
   scalaz.Ordering.GT
 
+  // Potentially slightly nonsense implementations but should suffice in this case.
+  implicit val arrayByteShow: Show[Array[Byte]] = Show.shows(_.toList.toString)
+  implicit val arrayByteEqual: Equal[Array[Byte]] = Equal.equalBy(_.toList)
+
   checkAll("ByteString", order.laws[ByteString])
   checkAll("ByteString", monoid.laws[ByteString])
 
@@ -63,7 +67,7 @@ class ByteStringSpec extends Spec {
 
   // use Short so the sizes don't get too huge
   "replicate" ! check { (n: Short, x: Byte) ⇒
-    replicate(n, x).toStream must be_=== (Stream.fill(n)(x))
+    replicate(n, x).toList must be_=== (List.fill(n)(x))
   }
   
   "unfoldr" ! check { (xs: Stream[Byte]) ⇒
@@ -299,6 +303,10 @@ class ByteStringSpec extends Spec {
 
   "toList" ! check { (xs: List[Byte]) ⇒
     packF(xs).toList must be_=== (xs)
+  }
+
+  "toArray" ! check { (xs: Array[Byte]) ⇒
+    pack(xs).toArray must be_=== (xs)
   }
 
   "toString" ! check { (xs: Stream[Byte]) ⇒
